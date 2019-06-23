@@ -1,14 +1,33 @@
 #ifndef __BRP_H__
 #define __BRP_H__
 
+/*
+Expects the following definitions:
+types:
+    brp_tx_t
+    brp_rx_t
+functions:
+    void brp_tx(brp_tx_t)
+    brp_rx_t brp_rx(void)
+*/
+
+#ifndef BRP_FUNC
+#define BRP_FUNC static
+#endif
+
+#ifndef __SHA256_H__
+#define SHA256_FUNC BRP_FUNC
 #define SHA256_ONLY_BE
 #include "sha256.h"
+#endif
+
+#ifndef __BRP_DATA_H__
 #include "brp_data.h"
+#endif
 
 typedef uint32_t (*patch_t)(void);
-static uint32_t brp_main(void){
-    uint8_t buf[64];
-    uint8_t *brp_apw=buf;
+BRP_FUNC uint32_t brp_main(uint8_t red_buf[64]){
+    uint8_t *brp_apw=red_buf;
     for(unsigned int i=0;i<32;i+=sizeof(brp_rx_t)){
         brp_rx_t rxdat=brp_rx();
         const uint8_t *const rxdat8=(const uint8_t *const)&rxdat;
@@ -24,10 +43,10 @@ static uint32_t brp_main(void){
         sha256_sum(brp_otp_state,32,brp_otp_state+32);
         brp_otp_state+=32;
     }
-    uint8_t *digest=buf;
+    uint8_t *digest=red_buf;
     sha256_sum(brp_otp_state,32,digest);
     //password check happens here
-    if(memcmp(digest,BRP_DIGEST,sizeof(BRP_DIGEST))){return 1;} 
+    if(memcmp(digest,BRP_DIGEST,sizeof(BRP_DIGEST))){return 1;}
     brp_enable_ram_patch();
     for(unsigned int i=0;i<sizeof(BRP_ROM);i++){
         brp_ram_patch[i]^=BRP_ROM[i];
