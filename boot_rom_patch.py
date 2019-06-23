@@ -6,11 +6,11 @@ Strong password protection for boot rom patch
 What do we call "boot rom patch" ?
 In case the first batch of an SOC turns out to be not functional, it is interesting to be able to download arbitrary code to investigate the issue. The boot rom patch enables that,
 with minimum requirement on hardware: it is a minimal code which can be triggered right after reset release, before the ROM code starts to initialize the whole SOC.
-If the SOC is supposed to have some security function, such boot rom patch needs obviously to be launched only by authorized staff at the SOC design house. 
+If the SOC is supposed to have some security function, such boot rom patch needs obviously to be launched only by authorized staff at the SOC design house.
 The difficulty stems from doing the access control securely without using any fancy hardware since by definition the boot rom patch mechanism shall be minimalist and not use anything beyond the CPU, the ROM, the RAM and a communication interface.
 The proposed scheme achieves security mostly at algorithmic level, only few implementation aspect need to be reviewed for security.
 
-Functional description: 
+Functional description:
 - boot_rom_patch (BRP): it is a small RAM code which allows to download and execute arbitrary RAM patch. linking to RX/TX functions in ROM code, 64 bytes are typically enough.
 - ROM contains the BRP in encrypted form
 - ROM decrypts and execute (from RAM) the BRP only if it receives a correct activation password (BRP_APW).
@@ -22,7 +22,7 @@ Security concept:
         - BRP_OTP(0) = SHA256(BRP_APW)
         - BRP_OTP(i) = SHA256(BRP_OTP(i-1))
         - BRP_DIGEST = BRP_OTP(BRP_BLOCKS)
-        - BRP_ROM = BRP^BRP_OTP 
+        - BRP_ROM = BRP^BRP_OTP
         Store BRP_BLOCKS, BRP_DIGEST and BRP_ROM in ROM image
     - ROM runtime execution:
         - PW = 32 bytes from outside (store in none executable area)
@@ -38,30 +38,31 @@ Security concept:
     - make whole RAM executable by direct laser fault on MPU
     - redirect execution to the user controlled buffer by whatever fault (for example by fault on CPU to force transfer of a pointer on this buffer to PC register)
     This is not trivial but some attackers do try hard.
-    To prevent such attack, BRP_APW is coded on 64 bytes with all even bytes being fixed at a given value (0xF8 by default). The ROM code enforce those values and 
+    To prevent such attack, BRP_APW is coded on 64 bytes with all even bytes being fixed at a given value (0xF8 by default). The ROM code enforce those values and
     get only the 32 odd bytes from outside. This encoding avoid to have malicious executable code sequence in the user controlled buffer.
-    
+
     Recommended RAM layout, assuming stack grows down:
-    
+
     highest address
         64 bytes buffer to write APW
         x bytes for stack
         area to download arbitrary patches using sbl
         sbl load area
     lowest address
-    
+
     Advantages:
     - APW buffer overflow outside the RAM, typically reset the device
     - sbl and download area as far as possible from APW buffer, On hardware with MPUs with coarse granularity, this allows to have execution rights on sbl and download area while keeping APW buffer not executable.
     - sbl code can move the stack up if needed
 
-Script I/Os:    
-input: 
+Script I/Os:
+input:
     - brp_ihex: ihex of the boot_rom_patch
     - sources: path to write brp_data.h
     - secrets: path to write brp_apw.*
+    - BRP_APW_EVEN (optional): the value for even bytes of BRP_APW
 output:
-    - <sources>brp_dat.h: C99 header file declaring 
+    - <sources>brp_dat.h: C99 header file declaring
         - BRP_BLOCKS
         - BRP_DIGEST
         - BRP_ROM
@@ -89,14 +90,14 @@ if (len(sys.argv) > 5) | (len(sys.argv) < 4) :
     print(sys.argv)
     exit()
 
-BRP_APW_EVEN=0xF8    
-    
+BRP_APW_EVEN=0xF8
+
 ihexf = sys.argv[1]
 sources = sys.argv[2]
 secrets = sys.argv[3]
 if len(sys.argv) > 4:
     BRP_APW_EVEN = int(sys.argv[4],0)
-    
+
 #generate BRP_APW
 brp_seed = os.urandom(32)
 brp_seed_iterations = 1000
@@ -113,7 +114,7 @@ for b in BRP_APW_odd:
     BRP_APW.append(0xF8)
     BRP_APW.append(b)
 brp_otp_state = SHA256.new(BRP_APW).digest()
-    
+
 ih = IntelHex()
 ih.loadhex(ihexf)
 all_sections = ih.segments()
@@ -125,11 +126,11 @@ for sec in all_sections:
 assert(1==len(all_sections))
 
 #get BRP as raw bytes (boot_rom_patch shall be position independent code)
-BRP = bytearray()            
+BRP = bytearray()
 for sec in all_sections:
     for i in range(sec[0],sec[1]):
         BRP.append(ih[i])
- 
+
 BRP_BLOCKS = (len(BRP)+31)//32
 
 BRP_OTP = bytearray()
@@ -148,7 +149,7 @@ BRP_ROM = bytearray()
 for i in range(0,len(BRP)):
     BRP_ROM.append(BRP_OTP[i] ^ BRP[i])
 
-def print_hexstr(ba):    
+def print_hexstr(ba):
     for i in range(0,len(ba)):
         print("%02X "%ba[i],end="")
     print()
@@ -214,7 +215,7 @@ with open(f, 'w') as out:
     for i in range(0,len(BRP_APW_odd)):
         out.write('"%02X" '%BRP_APW_odd[i])
     out.write('}\n')
-    
+
 f = os.path.join(secrets,"brp_apw.py")
 with open(f, 'w') as out:
     out.write('brp_seed_iterations=%d\n'%brp_seed_iterations)
@@ -224,4 +225,3 @@ with open(f, 'w') as out:
     out.write('brp_apw = %s.to_bytes(32,byteorder="big")\n'%brp_apw_hex)
     brp_apw_full_hex = "0x%032x"%int.from_bytes(BRP_APW, byteorder='big')
     out.write('brp_apw_full = %s.to_bytes(32,byteorder="big")\n'%brp_apw_full_hex)
-    
