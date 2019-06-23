@@ -1,0 +1,4 @@
+brp_seed_iterations=1000
+brp_seed = 0x2fe96f4e310e90a2ea6a52fa60696864c5056e57dadba29d3e18e91eeab7be6b.to_bytes(32,byteorder="big")
+brp_apw = 0xe7dbf82e2aa6f1bc9387b1b9b3939e721b65c25d96cc01e795e46262a9ca9def.to_bytes(32,byteorder="big")
+brp_apw_full = 0xf8e7f8dbf8f8f82ef82af8a6f8f1f8bcf893f887f8b1f8b9f8b3f893f89ef872f81bf865f8c2f85df896f8ccf801f8e7f895f8e4f862f862f8a9f8caf89df8ef.to_bytes(32,byteorder="big")
