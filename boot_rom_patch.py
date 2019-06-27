@@ -155,9 +155,16 @@ def print_hexstr(ba):
     print()
 
 print_hexstr(BRP)
+
+#we write BRP_DIGEST in ROM with the halfs swapped
+BRP_DIGEST_IN_ROM=BRP_DIGEST[16:32]
+BRP_DIGEST_IN_ROM+=BRP_DIGEST[0:16]
+
 if debug:
     print_hexstr(BRP_OTP)
     print_hexstr(BRP_ROM)
+    print_hexstr(BRP_DIGEST_IN_ROM)
+    
 
 f = os.path.join(sources,"brp_data.h")
 with open(f, 'w') as out:
@@ -167,9 +174,9 @@ with open(f, 'w') as out:
 """)
     out.write('#define BRP_BLOCKS %d\n'%BRP_BLOCKS)
     out.write('#define BRP_APW_EVEN %d\n'%BRP_APW_EVEN)
-    out.write('const uint8_t BRP_DIGEST[%d] = {'%len(BRP_DIGEST))
-    for i in range(0,len(BRP_DIGEST)):
-        out.write('0x%02X, '%BRP_DIGEST[i])
+    out.write('const uint8_t BRP_DIGEST[%d] = {'%len(BRP_DIGEST_IN_ROM))
+    for i in range(0,len(BRP_DIGEST_IN_ROM)):
+        out.write('0x%02X, '%BRP_DIGEST_IN_ROM[i])
     out.write('};\n')
     out.write('const uint8_t BRP_ROM[%d] = {'%len(BRP_ROM))
     for i in range(0,len(BRP_ROM)):

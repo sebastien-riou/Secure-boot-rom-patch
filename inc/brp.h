@@ -46,7 +46,14 @@ BRP_FUNC uint32_t brp_main(uint8_t red_buf[64]){
     uint8_t *digest=red_buf;
     sha256_sum(brp_otp_state,32,digest);
     //password check happens here
-    if(memcmp(digest,BRP_DIGEST,sizeof(BRP_DIGEST))){return 1;}
+    //order of data in BRP_DIGEST is not the same as in digest, so we need 2 memcmp
+    unsigned int half=sizeof(BRP_DIGEST)/2;
+    const uint8_t *const digest0 = digest;
+    const uint8_t *const digest1 = digest+half;
+    const uint8_t *const BRP_DIGEST0 = BRP_DIGEST+half;
+    const uint8_t *const BRP_DIGEST1 = BRP_DIGEST;
+    if(memcmp(digest0,BRP_DIGEST0,half)){return 1;}
+    if(memcmp(digest1,BRP_DIGEST1,half)){return 1;}
     brp_enable_ram_patch();
     for(unsigned int i=0;i<sizeof(BRP_ROM);i++){
         brp_ram_patch[i]^=BRP_ROM[i];

@@ -96,7 +96,16 @@ int main(int argc, char*argv[]){
     }
     uint8_t digest[32];
     sha256_sum(brp_otp_state,32,digest);
-    if(memcmp(digest,BRP_DIGEST,sizeof(BRP_DIGEST))){
+    //order of data in BRP_DIGEST is not the same as in digest, so we need 2 memcmp
+    unsigned int half=sizeof(BRP_DIGEST)/2;
+    const uint8_t *const digest0 = digest;
+    const uint8_t *const digest1 = digest+half;
+    const uint8_t *const BRP_DIGEST0 = BRP_DIGEST+half;
+    const uint8_t *const BRP_DIGEST1 = BRP_DIGEST;
+    unsigned int digest_mismatch=0;
+    if(memcmp(digest0,BRP_DIGEST0,half)){digest_mismatch=1;}
+    if(memcmp(digest1,BRP_DIGEST1,half)){digest_mismatch=1;}
+    if(digest_mismatch){
         printf("ERROR: BRP_DIGEST mismatch\n");
         println_bytes("digest    =",digest,sizeof(BRP_DIGEST));
         println_bytes("BRP_DIGEST=",BRP_DIGEST,sizeof(BRP_DIGEST));
