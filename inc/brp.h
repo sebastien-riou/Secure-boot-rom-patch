@@ -12,7 +12,7 @@ functions:
 */
 
 #ifndef BRP_FUNC
-#define BRP_FUNC static
+#define BRP_FUNC
 #endif
 
 #ifndef __SHA256_H__
@@ -26,7 +26,7 @@ functions:
 #endif
 
 typedef uint32_t (*patch_t)(void);
-BRP_FUNC uint32_t brp_main(uint8_t red_buf[64]){
+BRP_FUNC static uint32_t brp_main(uint8_t red_buf[64]){
     uint8_t *brp_apw=red_buf;
     for(unsigned int i=0;i<32;i+=sizeof(brp_rx_t)){
         brp_rx_t rxdat=brp_rx();
@@ -58,7 +58,7 @@ BRP_FUNC uint32_t brp_main(uint8_t red_buf[64]){
     for(unsigned int i=0;i<sizeof(BRP_ROM);i++){
         brp_ram_patch[i]^=BRP_ROM[i];
     }
-    patch_t patch=(patch_t)brp_ram_patch;
+    patch_t patch=(patch_t)(intptr_t)brp_ram_patch;
     #ifdef BRP_DO_NOT_EXECUTE_PATCH
     uint32_t status=0;
     (void)patch;
