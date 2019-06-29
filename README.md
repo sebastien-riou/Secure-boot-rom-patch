@@ -22,22 +22,22 @@ The proposed scheme achieves security mostly at algorithmic level, only few impl
     - BRP_OTP(i) = SHA256(BRP_OTP(i-1))
     - BRP_DIGEST = BRP_OTP(BRP_BLOCKS)
     - BRP_ROM = BRP^BRP_OTP
-    Store BRP_BLOCKS, BRP_DIGEST and BRP_ROM in ROM image
+    - Store BRP_BLOCKS, BRP_DIGEST and BRP_ROM in ROM image
 - ROM runtime execution:
     - PW = 32 bytes from outside (store in none executable area)
     - Write BRP_OTP to RAM (BRP_OTP(0) to BRP_OTP(BRP_BLOCKS))
-    - if BRP_OTP(BRP_BLOCKS) different than BRP_DIGEST, go to error state
+    - If BRP_OTP(BRP_BLOCKS) different than BRP_DIGEST, go to error state
     - Replace BRP_OTP by BRP_ROM^BRP_OTP
-    - make RAM executable, except area where we placed PW (ie. data directly controllable from outside)
-    - launch execution from RAM
+    - Make RAM executable, except area where we placed PW (ie. data directly controllable from outside)
+    - Launch execution from RAM
 
 This is equivalent to a password check to access a simple bootloader mode.
 The advantage is the intrinsic robustness against faults: the simple bootloader is not executable without the entry of the correct password.
 
 ### Additional countermeasure against some fault attacks
 In practice, it would be enough for a skilled attacker to bypass the scheme by injecting two faults:
-- make whole RAM executable by direct laser fault on MPU
-- redirect execution to the user controlled buffer by whatever fault (for example by fault on CPU to force transfer of a pointer on this buffer to PC register)
+- Make whole RAM executable by direct laser fault on MPU
+- Redirect execution to the user controlled buffer by whatever fault (for example by fault on CPU to force transfer of a pointer on this buffer to PC register)
 
 This is not trivial but some attackers do try hard.
 
@@ -46,17 +46,17 @@ get only the 32 odd bytes from outside. This encoding avoid to have malicious ex
 
 ### Recommended RAM layout, assuming stack grows down:
 
-highest address
-    64 bytes buffer to write APW
-    x bytes for stack
-    area to download arbitrary patches using sbl
-    sbl load area
-lowest address
+    Highest address
+        64 bytes buffer to write APW
+        x bytes for stack
+        Area to load arbitrary patches using SBL
+        SBL load area
+    Lowest address
 
 Advantages:
 - APW buffer overflow outside the RAM, typically reset the device
-- sbl and download area as far as possible from APW buffer, On hardware with MPUs with coarse granularity, this allows to have execution rights on sbl and download area while keeping APW buffer not executable.
-- sbl code can move the stack up if needed
+- SBL and patches load area as far as possible from APW buffer, On hardware with MPUs with coarse granularity, this allows to have execution rights on SBL and patches load area while keeping APW buffer not executable.
+- SBL code can move the stack up if needed
 
 ## boot_rom_patch.py script:
 This script is generating the various byte arrays to hardcode in the ROM code and generate BRP_APW.
