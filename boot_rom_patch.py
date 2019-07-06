@@ -19,16 +19,24 @@ Security concept:
     - ROM image preparation:
         - BRP_APW = 32 bytes random value
         - BRP_BLOCKS = (sizeof(BRP)+31) / 32
-        - BRP_OTP(0) = SHA256(BRP_APW)
+        - BRP_OTP_ROOT = SHA256(BRP_APW)
+        - BRP_OTP(0) = SHA256(BRP_OTP_ROOT)
         - BRP_OTP(i) = SHA256(BRP_OTP(i-1))
-        - BRP_DIGEST = BRP_OTP(BRP_BLOCKS)
-        - BRP_ROM = BRP^BRP_OTP
-        Store BRP_BLOCKS, BRP_DIGEST and BRP_ROM in ROM image
+        - BRP_DIGEST = BRP_OTP(BRP_BLOCKS*BRP_OTP_EXP+1)
+        - for b in 0 to BRP_BLOCKS
+            - for i in 0 to 32/BRP_OTP_EXP
+                - for j in 0 to BRP_OTP_EXP
+                    - BRP_ROM[b*32+i*BRP_OTP_EXP+j] = BRP[i]^BRP_OTP[b*32+i*BRP_OTP_EXP+j]
+        - Store BRP_BLOCKS, BRP_DIGEST and BRP_ROM in ROM image
     - ROM runtime execution:
         - PW = 32 bytes from outside (store in none executable area)
-        - Write BRP_OTP to RAM (BRP_OTP(0) to BRP_OTP(BRP_BLOCKS))
-        - if BRP_OTP(BRP_BLOCKS) different than BRP_DIGEST, go to error state
-        - Replace BRP_OTP by BRP_ROM^BRP_OTP
+        - for b in 0 to BRP_BLOCKS
+            - for i in 0 to 32/BRP_OTP_EXP
+                - t=0xFF
+                - for j in 0 to BRP_OTP_EXP
+                    - t &= BRP_ROM[b*32+i*BRP_OTP_EXP+j]^BRP_OTP[b*32+i*BRP_OTP_EXP+j]
+                - RAM[b*32/BRP_OTP_EXP+i] = t
+        - if BRP_OTP(BRP_BLOCKS*BRP_OTP_EXP+1) different than BRP_DIGEST, go to error state
         - make RAM executable, except area where we placed PW (ie. data directly controllable from outside)
         - launch execution from RAM
 
@@ -51,7 +59,7 @@ Security concept:
     lowest address
 
     Advantages:
-    - APW buffer overflow outside the RAM, typically reset the device
+    - APW buffer overflows outside the RAM, typically reset the device
     - sbl and download area as far as possible from APW buffer, On hardware with MPUs with coarse granularity, this allows to have execution rights on sbl and download area while keeping APW buffer not executable.
     - sbl code can move the stack up if needed
 
@@ -60,6 +68,7 @@ input:
     - brp_ihex: ihex of the boot_rom_patch
     - sources: path to write brp_data.h
     - secrets: path to write brp_apw.*
+    - BRP_OTP_EXP (optional): Expansion factor for one time pad
     - BRP_APW_EVEN (optional): the value for even bytes of BRP_APW
 output:
     - <sources>brp_dat.h: C99 header file declaring
@@ -83,20 +92,23 @@ from intelhex import IntelHex
 
 debug=0
 
-if (len(sys.argv) > 5) | (len(sys.argv) < 4) :
+if (len(sys.argv) > 6) | (len(sys.argv) < 4) :
     print("ERROR: incorrect arguments")
     print("Usage:")
-    print("%s <brp_ihex> <sources> <secrets> [APW_EVEN]"%os.path.basename(__file__))
+    print("%s <brp_ihex> <sources> <secrets> [OTP_EXP] [APW_EVEN]"%os.path.basename(__file__))
     print(sys.argv)
     exit()
 
 BRP_APW_EVEN=0xF8
+BRP_OTP_EXP=1
 
 ihexf = sys.argv[1]
 sources = sys.argv[2]
 secrets = sys.argv[3]
 if len(sys.argv) > 4:
-    BRP_APW_EVEN = int(sys.argv[4],0)
+    BRP_OTP_EXP = int(sys.argv[4],0)
+if len(sys.argv) > 5:
+    BRP_APW_EVEN = int(sys.argv[5],0)
 
 #generate BRP_APW
 brp_seed = os.urandom(32)
@@ -134,8 +146,8 @@ for sec in all_sections:
 BRP_BLOCKS = (len(BRP)+31)//32
 
 BRP_OTP = bytearray()
-BRP_OTP+=brp_otp_state
-for i in range(1,BRP_BLOCKS):
+#BRP_OTP+=brp_otp_state
+for i in range(0,BRP_BLOCKS*BRP_OTP_EXP):
     BRP_OTP+=brp_otp()
 BRP_DIGEST = brp_otp()
 
@@ -147,7 +159,8 @@ if debug:
 BRP_ROM = bytearray()
 
 for i in range(0,len(BRP)):
-    BRP_ROM.append(BRP_OTP[i] ^ BRP[i])
+    for j in range(0,BRP_OTP_EXP):
+        BRP_ROM.append(BRP_OTP[i*BRP_OTP_EXP+j] ^ BRP[i])
 
 def print_hexstr(ba):
     for i in range(0,len(ba)):
@@ -157,14 +170,15 @@ def print_hexstr(ba):
 print_hexstr(BRP)
 
 #we write BRP_DIGEST in ROM with the halfs swapped
-BRP_DIGEST_IN_ROM=BRP_DIGEST[16:32]
-BRP_DIGEST_IN_ROM+=BRP_DIGEST[0:16]
+#BRP_DIGEST_IN_ROM=BRP_DIGEST[16:32]
+#BRP_DIGEST_IN_ROM+=BRP_DIGEST[0:16]
+BRP_DIGEST_IN_ROM=BRP_DIGEST
 
 if debug:
     print_hexstr(BRP_OTP)
     print_hexstr(BRP_ROM)
     print_hexstr(BRP_DIGEST_IN_ROM)
-    
+
 
 f = os.path.join(sources,"brp_data.h")
 with open(f, 'w') as out:
@@ -173,14 +187,15 @@ with open(f, 'w') as out:
 #define __BRP_DATA_H__
 """)
     out.write('#define BRP_BLOCKS %d\n'%BRP_BLOCKS)
+    out.write('#define BRP_OTP_EXP %d\n'%BRP_OTP_EXP)
     out.write('#define BRP_APW_EVEN %d\n'%BRP_APW_EVEN)
-    out.write('const uint8_t BRP_DIGEST[%d] = {'%len(BRP_DIGEST_IN_ROM))
-    for i in range(0,len(BRP_DIGEST_IN_ROM)):
-        out.write('0x%02X, '%BRP_DIGEST_IN_ROM[i])
-    out.write('};\n')
     out.write('const uint8_t BRP_ROM[%d] = {'%len(BRP_ROM))
     for i in range(0,len(BRP_ROM)):
         out.write('0x%02X, '%BRP_ROM[i])
+    out.write('};\n')
+    out.write('const uint8_t BRP_DIGEST[%d] = {'%len(BRP_DIGEST_IN_ROM))
+    for i in range(0,len(BRP_DIGEST_IN_ROM)):
+        out.write('0x%02X, '%BRP_DIGEST_IN_ROM[i])
     out.write('};\n')
     out.write("""#endif
 """)
@@ -192,6 +207,7 @@ with open(f, 'w') as out:
 #define __BRP_APW_H__
 """)
     out.write('#define BRP_BLOCKS %d\n'%BRP_BLOCKS)
+    out.write('#define BRP_OTP_EXP %d\n'%BRP_OTP_EXP)
     out.write('const uint8_t BRP_APW[%d] = {'%len(BRP_APW))
     for i in range(0,len(BRP_APW)):
         out.write('0x%02X, '%BRP_APW[i])

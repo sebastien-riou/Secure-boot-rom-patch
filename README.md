@@ -18,16 +18,24 @@ The proposed scheme achieves security mostly at algorithmic level, only few impl
 - ROM image preparation:
     - BRP_APW = 32 bytes random value
     - BRP_BLOCKS = (sizeof(BRP)+31) / 32
-    - BRP_OTP(0) = SHA256(BRP_APW)
+    - BRP_OTP_ROOT = SHA256(BRP_APW)
+    - BRP_OTP(0) = SHA256(BRP_OTP_ROOT)
     - BRP_OTP(i) = SHA256(BRP_OTP(i-1))
-    - BRP_DIGEST = BRP_OTP(BRP_BLOCKS)
-    - BRP_ROM = BRP^BRP_OTP
+    - BRP_DIGEST = BRP_OTP(BRP_BLOCKS*BRP_OTP_EXP+1)
+    - for b in 0 to BRP_BLOCKS
+        - for i in 0 to 32/BRP_OTP_EXP
+            - for j in 0 to BRP_OTP_EXP
+                - BRP_ROM[b*32+i*BRP_OTP_EXP+j] = BRP[i]^BRP_OTP[b*32+i*BRP_OTP_EXP+j]
     - Store BRP_BLOCKS, BRP_DIGEST and BRP_ROM in ROM image
 - ROM runtime execution:
     - PW = 32 bytes from outside (store in none executable area)
-    - Write BRP_OTP to RAM (BRP_OTP(0) to BRP_OTP(BRP_BLOCKS))
-    - If BRP_OTP(BRP_BLOCKS) different than BRP_DIGEST, go to error state
-    - Replace BRP_OTP by BRP_ROM^BRP_OTP
+    - for b in 0 to BRP_BLOCKS
+        - for i in 0 to 32/BRP_OTP_EXP
+            - t=0xFF
+            - for j in 0 to BRP_OTP_EXP
+                - t &= BRP_ROM[b*32+i*BRP_OTP_EXP+j]^BRP_OTP[b*32+i*BRP_OTP_EXP+j]
+            - RAM[b*32/BRP_OTP_EXP+i] = t
+    - if BRP_OTP(BRP_BLOCKS*BRP_OTP_EXP+1) different than BRP_DIGEST, go to error state
     - Make RAM executable, except area where we placed PW (ie. data directly controllable from outside)
     - Launch execution from RAM
 
@@ -54,7 +62,7 @@ get only the 32 odd bytes from outside. This encoding avoid to have malicious ex
     Lowest address
 
 Advantages:
-- APW buffer overflow outside the RAM, typically reset the device
+- APW buffer overflows outside the RAM, typically reset the device
 - SBL and patches load area as far as possible from APW buffer, On hardware with MPUs with coarse granularity, this allows to have execution rights on SBL and patches load area while keeping APW buffer not executable.
 - SBL code can move the stack up if needed
 
@@ -67,6 +75,7 @@ Inputs:
 - brp_ihex: ihex of the boot_rom_patch
 - sources: path to write brp_data.h
 - secrets: path to write brp_apw.*
+- BRP_OTP_EXP (optional): Expansion factor for one time pad
 - BRP_APW_EVEN (optional): the value for even bytes of BRP_APW
 
 Outputs:

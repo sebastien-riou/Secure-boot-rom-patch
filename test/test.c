@@ -79,49 +79,36 @@ int main(int argc, char*argv[]){
         println_bytes("BRP_APW=",BRP_APW,sizeof(BRP_APW));
         return 1;
     }
-    sha256_sum(brp_apw,64,RAM_PATCH_AREA);
-    uint8_t *brp_otp_state = RAM_PATCH_AREA;
-    for(unsigned int i=1;i<BRP_BLOCKS;i++){
-        sha256_sum(brp_otp_state,32,brp_otp_state+32);
-        brp_otp_state+=32;
-    }
-    if(memcmp(RAM_PATCH_AREA,BRP_OTP,sizeof(BRP_OTP))){
-        printf("ERROR: BRP_OTP mismatch\n");
-        for(unsigned int i=0;i<BRP_BLOCKS;i++){
-            printf("block %u\n",i);
-            println_bytes("RAM       =",RAM_PATCH_AREA+32*i,32);
+    sha256_sum(brp_apw,64,red_buf);
+    uint8_t *brp_patch = RAM_PATCH_AREA;
+    const uint8_t *brp_rom = BRP_ROM;
+    for(unsigned int i=0;i<BRP_BLOCKS*BRP_OTP_EXP;i++){
+        brp_otp_gen(red_buf,brp_rom,brp_patch);
+        brp_patch+=32/BRP_OTP_EXP;
+        brp_rom+=32;
+        if(memcmp(red_buf,BRP_OTP+i*32,32)){
+            printf("ERROR: BRP_OTP mismatch at block %u\n",i);
+            println_bytes("red_buf   =",red_buf,32);
             println_bytes("BRP_OTP   =",BRP_OTP+32*i,32);
+            return 2;
         }
-        return 2;
     }
-    uint8_t digest[32];
-    sha256_sum(brp_otp_state,32,digest);
-    //order of data in BRP_DIGEST is not the same as in digest, so we need 2 memcmp
-    unsigned int half=sizeof(BRP_DIGEST)/2;
-    const uint8_t *const digest0 = digest;
-    const uint8_t *const digest1 = digest+half;
-    const uint8_t *const BRP_DIGEST0 = BRP_DIGEST+half;
-    const uint8_t *const BRP_DIGEST1 = BRP_DIGEST;
-    unsigned int digest_mismatch=0;
-    if(memcmp(digest0,BRP_DIGEST0,half)){digest_mismatch=1;}
-    if(memcmp(digest1,BRP_DIGEST1,half)){digest_mismatch=1;}
-    if(digest_mismatch){
-        printf("ERROR: BRP_DIGEST mismatch\n");
-        println_bytes("digest    =",digest,sizeof(BRP_DIGEST));
-        println_bytes("BRP_DIGEST=",BRP_DIGEST,sizeof(BRP_DIGEST));
-        return 3;
-    }
-    for(unsigned int i=0;i<sizeof(BRP_ROM);i++){
-        RAM_PATCH_AREA[i]^=BRP_ROM[i];
-        printf("%02X ",RAM_PATCH_AREA[i]);
-    }
-    printf("\n");
     if(memcmp(RAM_PATCH_AREA,BRP,sizeof(BRP))){
         printf("ERROR: BRP mismatch\n");
         println_bytes("RAM       =",RAM_PATCH_AREA,sizeof(BRP));
         println_bytes("BRP       =",BRP,sizeof(BRP));
         return 4;
     }
+    uint8_t digest[32];
+    sha256_sum(red_buf,32,digest);
+    if(memcmp(digest,BRP_DIGEST,sizeof(BRP_DIGEST))){
+        printf("ERROR: BRP_DIGEST mismatch\n");
+        println_bytes("digest    =",digest,sizeof(BRP_DIGEST));
+        println_bytes("BRP_DIGEST=",BRP_DIGEST,sizeof(BRP_DIGEST));
+        return 3;
+    }
+
+
     if(0==status){
         printf("\nTEST SUCCESFULL\n");
     }
