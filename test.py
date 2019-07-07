@@ -6,7 +6,7 @@ import runpy
 os.makedirs("./dat",exist_ok=True)
 os.makedirs("./secrets",exist_ok=True)
 
-for OTP_EXP in [1,2,4]:
+for OTP_EXP in [1,2,4,8]:
     sys.argv=[""]
     sys.argv.append("test.ihex")
     sys.argv.append("./dat")

@@ -32,7 +32,8 @@ BRP_FUNC static void brp_otp_gen(uint8_t*const state,const uint8_t*const cst,uin
     for(unsigned int i=0;i<32/BRP_OTP_EXP;i++){
         uint8_t t=0xFF;
         for(unsigned int j=0;j<BRP_OTP_EXP;j++){
-            t &= state[i*BRP_OTP_EXP+j] ^ cst[i*BRP_OTP_EXP+j];
+            unsigned int lsb = (j+1)==BRP_OTP_EXP ? 0 : 1;//1 except at last iteration
+            t &= (state[i*BRP_OTP_EXP+j] ^ cst[i*BRP_OTP_EXP+j]) | lsb;
         }
         dst[i]=t;
     }
