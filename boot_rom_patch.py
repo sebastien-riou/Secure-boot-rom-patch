@@ -181,7 +181,7 @@ if debug:
 
 
 f = os.path.join(sources,"brp_data.h")
-with open(f, 'w') as out:
+with open(f, 'w+') as out:
     out.write("""
 #ifndef __BRP_DATA_H__
 #define __BRP_DATA_H__
@@ -201,7 +201,7 @@ with open(f, 'w') as out:
 """)
 
 f = os.path.join(secrets,"brp_apw.h")
-with open(f, 'w') as out:
+with open(f, 'w+') as out:
     out.write("""
 #ifndef __BRP_APW_H__
 #define __BRP_APW_H__
@@ -228,7 +228,7 @@ with open(f, 'w') as out:
 """)
 
 f = os.path.join(secrets,"brp_apw.tcl")
-with open(f, 'w') as out:
+with open(f, 'w+') as out:
     out.write('set brp_seed_iterations %d\n'%brp_seed_iterations)
     out.write('set brp_seed {')
     for i in range(0,len(brp_seed)):
@@ -240,7 +240,7 @@ with open(f, 'w') as out:
     out.write('}\n')
 
 f = os.path.join(secrets,"brp_apw.py")
-with open(f, 'w') as out:
+with open(f, 'w+') as out:
     out.write('brp_seed_iterations=%d\n'%brp_seed_iterations)
     brp_seed_hex = "0x%032x"%int.from_bytes(brp_seed, byteorder='big')
     out.write('brp_seed = %s.to_bytes(32,byteorder="big")\n'%brp_seed_hex)
