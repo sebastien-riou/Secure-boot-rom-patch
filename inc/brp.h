@@ -17,7 +17,7 @@ functions:
 
 #ifndef __SHA256_H__
 #define SHA256_FUNC BRP_FUNC
-#define SHA256_ONLY_BE
+#define SHA256_BE
 #include "sha256.h"
 #endif
 

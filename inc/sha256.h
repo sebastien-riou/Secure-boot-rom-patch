@@ -6,11 +6,6 @@
 #include <stdlib.h>
 #include <memory.h>
 
-#ifndef SHA256_FUNC
-#define SHA256_FUNC static
-#endif
-
-
 //#include "bytes_utils.h"
 
 #define SHA256_BLOCK_SIZE 32            // SHA256 outputs a 32 byte digest
@@ -43,7 +38,7 @@ static const uint32_t SHA256_k[64] = {
 	0x748f82ee,0x78a5636f,0x84c87814,0x8cc70208,0x90befffa,0xa4506ceb,0xbef9a3f7,0xc67178f2
 };
 
-SHA256_FUNC void sha256_transform(SHA256_CTX *ctx, const uint8_t data[]){
+static void sha256_transform(SHA256_CTX *ctx, const uint8_t data[]){
     //println_bytes("sha256_transform input:",data,64);
 	uint32_t a, b, c, d, e, f, g, h, i, j, t1, t2, m[64];
 
@@ -84,7 +79,7 @@ SHA256_FUNC void sha256_transform(SHA256_CTX *ctx, const uint8_t data[]){
 	ctx->state[7] += h;
 }
 
-SHA256_FUNC void sha256_init(SHA256_CTX *ctx){
+static void sha256_init(SHA256_CTX *ctx){
 	ctx->datalen = 0;
 	ctx->bitlen = 0;
 	ctx->state[0] = 0x6a09e667;
@@ -97,7 +92,7 @@ SHA256_FUNC void sha256_init(SHA256_CTX *ctx){
 	ctx->state[7] = 0x5be0cd19;
 }
 
-SHA256_FUNC void sha256_update(SHA256_CTX *ctx, const uint8_t data[], size_t len){
+static void sha256_update(SHA256_CTX *ctx, const uint8_t data[], size_t len){
 	uint32_t i;
 
 	for (i = 0; i < len; ++i) {
@@ -111,7 +106,7 @@ SHA256_FUNC void sha256_update(SHA256_CTX *ctx, const uint8_t data[], size_t len
 	}
 }
 
-SHA256_FUNC void sha256_final(SHA256_CTX *ctx, uint8_t hash[], unsigned int little){
+static void sha256_final(SHA256_CTX *ctx, uint8_t hash[], unsigned int little){
 	uint32_t i;
 
 	i = ctx->datalen;
@@ -178,8 +173,8 @@ SHA256_FUNC void sha256_final(SHA256_CTX *ctx, uint8_t hash[], unsigned int litt
     }
 }
 
-#ifndef SHA256_ONLY_LE
-SHA256_FUNC void sha256_sum(const void* dat, size_t len, void* const hash){
+#ifdef SHA256_BE
+static void sha256_sum(const void* dat, size_t len, void* const hash){
     const uint8_t*const data=dat;
     uint8_t* const hash8=hash;
     SHA256_CTX h_ctx;
@@ -190,8 +185,8 @@ SHA256_FUNC void sha256_sum(const void* dat, size_t len, void* const hash){
 }
 #endif
 
-#ifndef SHA256_ONLY_BE
-SHA256_FUNC void sha256_sum_little(const void* dat, size_t len, void* const hash){
+#ifdef SHA256_LE
+static void sha256_sum_little(const void* dat, size_t len, void* const hash){
     const uint8_t*const data=dat;
     uint8_t* const hash8=hash;
     SHA256_CTX h_ctx;
@@ -199,6 +194,41 @@ SHA256_FUNC void sha256_sum_little(const void* dat, size_t len, void* const hash
     sha256_init(h);
     sha256_update(h,data,len);
     sha256_final(h,hash8,1);
+}
+#endif
+
+#ifdef SHA256_CALLBACK
+typedef size_t (dat_reader_t)(void*,const void**);
+typedef struct default_dat_reader_ctx_struct {
+    const void*dat;
+    size_t size;
+} default_dat_reader_ctx_t;
+
+static size_t default_dat_reader(void*ctx, const void**dat){
+    default_dat_reader_ctx_t*c = (default_dat_reader_ctx_t*)ctx;
+    //printf("\ndefault_dat_reader ctx=%p\n",ctx);
+    *dat = c->dat;
+    size_t out = c->size;
+    //printf("default_dat_reader dat=%p, out=%lx\n",dat,out);
+    //fflush(stdout);
+    c->size=0;
+    return out;
+}
+
+static void sha256_sum_callback(dat_reader_t dat_reader, void*dat_reader_ctx, void* const hash){
+    uint8_t* const hash8=hash;
+    SHA256_CTX h_ctx;
+    SHA256_CTX *h = &h_ctx;
+    sha256_init(h);
+	const void* dat;
+	size_t size;
+	while((size=dat_reader(dat_reader_ctx, &dat))){
+		const uint8_t*const data=dat;
+		//printf("sha256 update dat=%p, size=%lx\n",dat,size);
+    	//fflush(stdout);
+    	sha256_update(h,data,size);
+	}
+	sha256_final(h,hash8,1);
 }
 #endif
 #endif
