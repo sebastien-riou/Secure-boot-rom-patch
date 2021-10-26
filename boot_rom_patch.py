@@ -92,26 +92,44 @@ from intelhex import IntelHex
 
 debug=0
 
-if (len(sys.argv) > 6) | (len(sys.argv) < 4) :
-    print("ERROR: incorrect arguments")
-    print("Usage:")
-    print("%s <brp_ihex> <sources> <secrets> [OTP_EXP] [APW_EVEN]"%os.path.basename(__file__))
-    print(sys.argv)
-    exit()
+#if (len(sys.argv) > 6) | (len(sys.argv) < 4) :
+#    print("ERROR: incorrect arguments")
+#    print("Usage:")
+#    print("%s <brp_ihex> <sources> <secrets> [OTP_EXP] [APW_EVEN]"%os.path.basename(__file__))
+#    print(sys.argv)
+#    exit()
 
-BRP_APW_EVEN=0xF8
-BRP_OTP_EXP=1
+import argparse
 
-ihexf = sys.argv[1]
-sources = sys.argv[2]
-secrets = sys.argv[3]
-if len(sys.argv) > 4:
-    BRP_OTP_EXP = int(sys.argv[4],0)
-if len(sys.argv) > 5:
-    BRP_APW_EVEN = int(sys.argv[5],0)
+def auto_int(x):
+    return int(x, 0)
+
+scriptname = os.path.basename(__file__)
+parser = argparse.ArgumentParser(scriptname)
+levels = ('DEBUG', 'INFO', 'WARNING', 'ERROR', 'CRITICAL')
+parser.add_argument('--log-level', default='INFO', choices=levels)
+parser.add_argument('--otp-exp' , default=1, help='OTP_EXP', type=auto_int)
+parser.add_argument('--apw-even', default=0xf8, help='APW_EVEN', type=auto_int)
+parser.add_argument('--seed'    , default=None, help='Seed to generate BRP password"', type=auto_int)
+parser.add_argument('--file'    , help='Path to brp_ihex', type=str)
+parser.add_argument('--sources' , default="sources" , help='Path to sources directory', type=str)
+parser.add_argument('--secrets' , default="secrtes" , help='Path to secrets directory', type=str)
+
+options = parser.parse_args()
+
+BRP_APW_EVEN=options.apw_even
+BRP_OTP_EXP=options.otp_exp
+
+ihexf = options.file
+sources = options.sources
+secrets = options.secrets
+
 
 #generate BRP_APW
-brp_seed = os.urandom(32)
+if options.seed is None:
+    brp_seed = os.urandom(32)
+else:
+    brp_seed = options.seed.to_bytes()
 brp_seed_iterations = 1000
 brp_otp_state = brp_seed
 def brp_otp():
