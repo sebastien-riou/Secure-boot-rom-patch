@@ -265,4 +265,4 @@ with open(f, 'w+') as out:
     brp_apw_hex = "0x%032x"%int.from_bytes(BRP_APW_odd, byteorder='big')
     out.write('brp_apw = %s.to_bytes(32,byteorder="big")\n'%brp_apw_hex)
     brp_apw_full_hex = "0x%032x"%int.from_bytes(BRP_APW, byteorder='big')
-    out.write('brp_apw_full = %s.to_bytes(32,byteorder="big")\n'%brp_apw_full_hex)
+    out.write('brp_apw_full = %s.to_bytes(64,byteorder="big")\n'%brp_apw_full_hex)
