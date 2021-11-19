@@ -113,7 +113,7 @@ parser.add_argument('--apw-even', default=0xf8, help='APW_EVEN', type=auto_int)
 parser.add_argument('--seed'    , default=None, help='Seed to generate BRP password"', type=auto_int)
 parser.add_argument('--file'    , help='Path to brp_ihex', type=str)
 parser.add_argument('--sources' , default="sources" , help='Path to sources directory', type=str)
-parser.add_argument('--secrets' , default="secrtes" , help='Path to secrets directory', type=str)
+parser.add_argument('--secrets' , default="secrets" , help='Path to secrets directory', type=str)
 
 options = parser.parse_args()
 
